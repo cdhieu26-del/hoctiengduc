@@ -1,373 +1,107 @@
 <script>
-  const URL_WEB_APP = "https://script.google.com/macros/s/AKfycbylXlf3tRczBL6-anYDo3lgEf-02PAdyZSLDuiwCfwqN4KbP8rp_tLzalScJNW8CLvW/exec";
-  let currentSheet = 'tiengDucA1';
-  let allData = [];
-  let filteredData = [];
-  let currentPage = 1;
-  const rowsPerPage = 50;
+// ==========================================
+// CẤU HÌNH ĐƯỜNG LINK WEB APP CỦA BẠN TẠI ĐÂY
+// ==========================================
+const URL_WEB_APP = "https://script.google.com/macros/s/AKfycbxX1-kVR9QsFVFYxoABnkgiOs0aHA0n3FassMUcMufHIwMn1RUJR34K0RVR-7iv4AMu/exec";
 
-  // Khởi tạo
-  document.addEventListener("DOMContentLoaded", () => {
+let currentSheet = 'tiengDucA1';
+let allData = [];
+let filteredData = [];
+let currentPage = 1;
+const rowsPerPage = 50;
+
+// Khởi tạo
+document.addEventListener("DOMContentLoaded", () => {
     loadData();
-  });
+});
 
-  // Đổi trình độ (Tab hoặc Dropdown)
-  function changeLevel(level) {
+// Đổi trình độ (Tab hoặc Dropdown)
+function changeLevel(level) {
     currentSheet = level;
     
     // Đồng bộ UI giữa Tabs và Dropdown
     document.querySelectorAll('.custom-tabs .nav-link').forEach(el => el.classList.remove('active'));
     let tabIndex = level === 'tiengDucA1' ? 0 : 1;
-    document.querySelectorAll('.custom-tabs .nav-link')[tabIndex].classList.add('active');
-    document.getElementById('filterLevel').value = level;
+    if(document.querySelectorAll('.custom-tabs .nav-link')[tabIndex]) {
+        document.querySelectorAll('.custom-tabs .nav-link')[tabIndex].classList.add('active');
+    }
+    if(document.getElementById('filterLevel')) {
+        document.getElementById('filterLevel').value = level;
+    }
 
     loadData();
-  }
+}
 
-  // Tải dữ liệu từ GS
- function loadData() {
-    document.getElementById('loading').style.display = 'block';
-    document.getElementById('tableBody').innerHTML = '';
+// 1. TẢI DỮ LIỆU TỪ GOOGLE SHEET
+function loadData() {
+    if(document.getElementById('loading')) document.getElementById('loading').style.display = 'block';
+    if(document.getElementById('tableBody')) document.getElementById('tableBody').innerHTML = '';
 
-    // XÓA đoạn google.script.run cũ đi và THAY BẰNG ĐOẠN FETCH NÀY:
     fetch(`${URL_WEB_APP}?sheet=${currentSheet}`)
     .then(response => response.json())
     .then(res => {
         allData = res;
-        populateTopics();
-        // Nếu có đoạn ẩn chữ 'loading' hoặc hiện bảng thì giữ nguyên cấu trúc cũ của bạn
+        if(typeof populateTopics === "function") populateTopics();
+        if(typeof displayData === "function") displayData(); // Hàm hiển thị bảng của bạn nếu có
+        if(document.getElementById('loading')) document.getElementById('loading').style.display = 'none';
     })
-    .catch(error => console.error("Lỗi tải dữ liệu:", error));
-}
-
-  // Đổ Chủ đề vào filter
-  function populateTopics() {
-    const topics = [...new Set(allData.map(item => item.chuDe))].filter(t => t);
-    const select = document.getElementById('filterTopic');
-    select.innerHTML = '<option value="">-- Tất cả chủ đề --</option>';
-    topics.forEach(t => {
-      select.innerHTML += `<option value="${t}">${t}</option>`;
+    .catch(error => {
+        console.error("Lỗi tải dữ liệu:", error);
+        alert("Không thể tải dữ liệu từ Google Sheets. Hãy kiểm tra lại link Web App hoặc quyền truy cập Anyone.");
     });
-  }
+}
 
-  // Hàm lọc dữ liệu kết hợp Keyword và Chủ đề
-  function applyFilters() {
-    const keyword = document.getElementById('searchKeyword').value.toLowerCase();
-    const topic = document.getElementById('filterTopic').value;
+// 2. HÀM GỬI YÊU CẦU (THÊM, SỬA, XÓA) LÊN GOOGLE SHEET
+function sendDataToGoogleSheet(action, rowIndex, dataObj, successMessage) {
+    if(document.getElementById('loading')) document.getElementById('loading').style.display = 'block';
+    
+    const payload = {
+        action: action,
+        sheetName: currentSheet,
+        rowIndex: rowIndex,
+        data: dataObj
+    };
 
-    filteredData = allData.filter(item => {
-      const matchKeyword = Object.values(item).some(val => String(val).toLowerCase().includes(keyword));
-      const matchTopic = topic ? item.chuDe === topic : true;
-      return matchKeyword && matchTopic;
+    fetch(URL_WEB_APP, {
+        method: "POST",
+        body: JSON.stringify(payload)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if(document.getElementById('loading')) document.getElementById('loading').style.display = 'none';
+        if (result.status === "success") {
+            alert(successMessage || result.message);
+            
+            // Đóng các modal thông báo/nhập liệu nếu có
+            if(typeof đóngModal === "function") đóngModal(); 
+            
+            // Tải lại dữ liệu mới nhất
+            loadData();
+        } else {
+            alert("Lỗi từ hệ thống: " + result.message);
+        }
+    })
+    .catch(error => {
+        if(document.getElementById('loading')) document.getElementById('loading').style.display = 'none';
+        console.error("Lỗi kết nối:", error);
+        alert("Lỗi kết nối server mạng hoặc lỗi CORS!");
     });
-
-    currentPage = 1;
-    renderTable();
-  }
-
-  // Hiển thị bảng có phân trang
-  function renderTable() {
-    const tbody = document.getElementById('tableBody');
-    tbody.innerHTML = '';
-
-    const start = (currentPage - 1) * rowsPerPage;
-    const end = start + rowsPerPage;
-    const paginatedData = filteredData.slice(start, end);
-
-    if (paginatedData.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-4">Không tìm thấy dữ liệu!</td></tr>';
-    } else {
-      paginatedData.forEach(row => {
-        tbody.innerHTML += `
-          <tr>
-            <td class="text-center fw-bold">${row.stt}</td>
-            <td><span class="badge bg-secondary">${row.chuDe}</span></td>
-            <td class="text-primary-custom fw-bold">${row.tiengDuc}</td>
-            <td><i>${row.ipa}</i></td>
-            <td>${row.tuLoai}</td>
-            <td>${row.maoTu}</td>
-            <td>${row.soNhieu}</td>
-            <td>${row.nghiaTV}</td>
-<td>
-  ${row.viDu ? `
-    <div class="d-flex align-items-center justify-content-between gap-2">
-      <span>${row.viDu}</span>
-      <button class="btn btn-sm btn-speak p-0 border-0 flex-shrink-0" 
-              data-text="${encodeURIComponent(row.viDu)}" 
-              onclick="speakGerman(this)" 
-              title="Nghe phát âm ví dụ">
-        <i class="fa-solid fa-volume-high"></i>
-      </button>
-    </div>
-  ` : ''}
-</td>
-            <td>${row.dichViDu}</td>
-            <td class="text-center">
-              <button class="btn btn-sm btn-outline-primary" onclick='openModal("edit", ${JSON.stringify(row)})'><i class="fa-solid fa-pen"></i></button>
-              <button class="btn btn-sm btn-outline-danger" onclick="openDeleteModal(${row.rowIndex})"><i class="fa-solid fa-trash"></i></button>
-            </td>
-          </tr>
-        `;
-      });
-    }
-    renderPagination();
-  }
-
-  // Phân trang nâng cao với Dấu ba chấm & Nút Điều hướng
-function renderPagination() {
-  const totalPages = Math.ceil(filteredData.length / rowsPerPage);
-  const pagContainer = document.getElementById('pagination');
-  const pageInfo = document.getElementById('pageInfo');
-  pagContainer.innerHTML = '';
-
-  if (filteredData.length === 0) {
-    pageInfo.innerHTML = 'Hiển thị <strong>0</strong> từ';
-    return;
-  }
-
-  const startItem = (currentPage - 1) * rowsPerPage + 1;
-  const endItem = Math.min(currentPage * rowsPerPage, filteredData.length);
-  pageInfo.innerHTML = `Hiển thị <strong>${startItem} - ${endItem}</strong> / tổng <strong>${filteredData.length}</strong> từ`;
-
-  if (totalPages <= 1) return;
-
-  let html = '';
-
-  // Nút Đầu & Trước
-  html += `
-    <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
-      <a class="page-link" href="javascript:void(0)" onclick="goToPage(1)" title="Trang đầu">
-        <i class="fa-solid fa-angles-left"></i>
-      </a>
-    </li>
-    <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
-      <a class="page-link" href="javascript:void(0)" onclick="goToPage(${currentPage - 1})" title="Trang trước">
-        <i class="fa-solid fa-angle-left"></i>
-      </a>
-    </li>
-  `;
-
-  // Thuật toán hiển thị các trang kèm dấu ba chấm (...)
-  const delta = 1; // Số trang hiển thị 2 bên trang hiện tại
-  let range = [];
-  for (let i = Math.max(2, currentPage - delta); i <= Math.min(totalPages - 1, currentPage + delta); i++) {
-    range.push(i);
-  }
-
-  if (currentPage - delta > 2) range.unshift('...');
-  if (currentPage + delta < totalPages - 1) range.push('...');
-
-  range.unshift(1);
-  if (totalPages > 1) range.push(totalPages);
-
-  // Render danh sách nút
-  range.forEach(page => {
-    if (page === '...') {
-      html += `
-        <li class="page-item ellipsis">
-          <span class="page-link">&hellip;</span>
-        </li>
-      `;
-    } else {
-      html += `
-        <li class="page-item ${page === currentPage ? 'active' : ''}">
-          <a class="page-link" href="javascript:void(0)" onclick="goToPage(${page})">${page}</a>
-        </li>
-      `;
-    }
-  });
-
-  // Nút Sau & Cuối
-  html += `
-    <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
-      <a class="page-link" href="javascript:void(0)" onclick="goToPage(${currentPage + 1})" title="Trang sau">
-        <i class="fa-solid fa-angle-right"></i>
-      </a>
-    </li>
-    <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
-      <a class="page-link" href="javascript:void(0)" onclick="goToPage(${totalPages})" title="Trang cuối">
-        <i class="fa-solid fa-angles-right"></i>
-      </a>
-    </li>
-  `;
-
-  pagContainer.innerHTML = html;
 }
 
-  function goToPage(page) {
-    currentPage = page;
-    renderTable();
-    // Scroll table to top
-    document.querySelector('.table-wrapper').scrollTop = 0;
-  }
+// 3. THAY THẾ CÁC HÀM XỬ LÝ SỰ KIỆN CŨ CỦA BẠN:
 
-  // Form Modal (Thêm/Sửa)
-  let modalMode = 'add';
-  const dataModal = new bootstrap.Modal(document.getElementById('dataModal'));
-  
-  function openModal(mode, data = null) {
-    modalMode = mode;
-    document.getElementById('dataForm').reset();
-    
-    if (mode === 'edit' && data) {
-      document.getElementById('modalTitle').innerText = 'Sửa Thông Tin';
-      document.getElementById('rowIndex').value = data.rowIndex;
-      document.getElementById('chuDe').value = data.chuDe;
-      document.getElementById('tiengDuc').value = data.tiengDuc;
-      document.getElementById('ipa').value = data.ipa;
-      document.getElementById('tuLoai').value = data.tuLoai;
-      document.getElementById('maoTu').value = data.maoTu;
-      document.getElementById('soNhieu').value = data.soNhieu;
-      document.getElementById('nghiaTV').value = data.nghiaTV;
-      document.getElementById('viDu').value = data.viDu;
-      document.getElementById('dichViDu').value = data.dichViDu;
-    } else {
-      document.getElementById('modalTitle').innerText = 'Thêm Từ Mới';
-    }
-    dataModal.show();
-  }
-
-  function saveData() {
-    if(!document.getElementById('dataForm').checkValidity()){
-      document.getElementById('dataForm').reportValidity();
-      return;
-    }
-
-    const obj = {
-      chuDe: document.getElementById('chuDe').value,
-      tiengDuc: document.getElementById('tiengDuc').value,
-      ipa: document.getElementById('ipa').value,
-      tuLoai: document.getElementById('tuLoai').value,
-      maoTu: document.getElementById('maoTu').value,
-      soNhieu: document.getElementById('soNhieu').value,
-      nghiaTV: document.getElementById('nghiaTV').value,
-      viDu: document.getElementById('viDu').value,
-      dichViDu: document.getElementById('dichViDu').value
-    };
-
-    if (modalMode === 'add') {
-      google.script.run.withSuccessHandler((msg) => {
-        dataModal.hide();
-        showToast(msg, 'success');
-        loadData();
-      }).addData(currentSheet, obj);
-    } else {
-      const rowIndex = document.getElementById('rowIndex').value;
-      google.script.run.withSuccessHandler((msg) => {
-        dataModal.hide();
-        showToast(msg, 'success');
-        loadData();
-      }).updateData(currentSheet, rowIndex, obj);
-    }
-  }
-
-  // Modal Xóa
-  const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
-  
-  function openDeleteModal(rowIndex) {
-    document.getElementById('deleteRowIndex').value = rowIndex;
-    deleteModal.show();
-  }
-
-  function confirmDelete() {
-    const rowIndex = document.getElementById('deleteRowIndex').value;
-    google.script.run.withSuccessHandler((msg) => {
-      deleteModal.hide();
-      showToast(msg, 'danger');
-      loadData();
-    }).deleteData(currentSheet, rowIndex);
-  }
-
-  // Toast Helper
-  function showToast(message, type) {
-    const toastEl = document.getElementById('liveToast');
-    document.getElementById('toastMessage').innerText = message;
-    
-    toastEl.classList.remove('bg-success', 'bg-danger', 'bg-primary');
-    if(type === 'success') toastEl.classList.add('bg-success');
-    if(type === 'danger') toastEl.classList.add('bg-danger');
-
-    const toast = new bootstrap.Toast(toastEl);
-    toast.show();
-  }
-
-  // Hàm Utils chuẩn hóa ngày (Dành cho việc bắt các input Ngày tháng chuẩn dd/MM/yyyy nếu sau này thêm trường Ngày)
-  function formatDateToDDMMYYYY(dateInput) {
-    if (!dateInput) return '';
-    const d = new Date(dateInput);
-    if (isNaN(d.getTime())) return dateInput;
-    const day = ('0' + d.getDate()).slice(-2);
-    const month = ('0' + (d.getMonth() + 1)).slice(-2);
-    const year = d.getFullYear();
-    return `${day}/${month}/${year}`;
-  }
-  // Hàm đọc phát âm tiếng Đức bằng Web Speech API
-function speakGerman(btn) {
-  const text = decodeURIComponent(btn.getAttribute('data-text'));
-  if (!text) return;
-
-  if ('speechSynthesis' in window) {
-    // Hủy các câu đang đọc dở trước đó
-    window.speechSynthesis.cancel();
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'de-DE'; // Ngôn ngữ tiếng Đức
-    utterance.rate = 0.85;    // Tốc độ đọc (0.85 vừa phải cho người mới học)
-
-    const icon = btn.querySelector('i');
-    
-    // Hiệu ứng icon khi bắt đầu đọc
-    utterance.onstart = () => {
-      icon.className = 'fa-solid fa-volume-high fa-beat-fade text-warning';
-    };
-
-    // Khôi phục icon sau khi đọc xong hoặc lỗi
-    utterance.onend = utterance.onerror = () => {
-      icon.className = 'fa-solid fa-volume-high';
-    };
-
-    window.speechSynthesis.speak(utterance);
-  } else {
-    showToast('Trình duyệt của bạn không hỗ trợ phát âm tự động!', 'danger');
-  }
+// Thay cho hàm thêm mới cũ
+function bieuMauThemMoi(obj) {
+    sendDataToGoogleSheet("add", null, obj, "Đã thêm từ mới vào Google Sheet thành công!");
 }
-// Chuyển đổi giữa màn hình Tra cứu và Luyện tập
-// Hàm chuyển đổi giữa Tra cứu và Luyện tập
-function switchView(viewName) {
-  const vocabView = document.getElementById('vocabView');
-  const practiceView = document.getElementById('practiceView');
-  const vocabNav = document.getElementById('tabVocabulary');
-  const practiceNav = document.getElementById('tabPractice');
 
-  if (viewName === 'vocab') {
-    // Cập nhật Tab
-    vocabNav.classList.add('active');
-    practiceNav.classList.remove('active');
-    
-    // Hiện Tra cứu: Bỏ ẩn (d-none), thêm hiển thị (d-flex)
-    vocabView.classList.remove('d-none');
-    vocabView.classList.add('d-flex');
-    
-    // Ẩn Luyện tập: Thêm ẩn (d-none), bỏ hiển thị (d-block)
-    practiceView.classList.add('d-none');
-    practiceView.classList.remove('d-block');
-  } else if (viewName === 'practice') {
-    // Cập nhật Tab
-    practiceNav.classList.add('active');
-    vocabNav.classList.remove('active');
-    
-    // Ẩn Tra cứu: Thêm ẩn (d-none), bỏ hiển thị (d-flex)
-    vocabView.classList.add('d-none');
-    vocabView.classList.remove('d-flex');
-    
-    // Hiện Luyện tập: Bỏ ẩn (d-none), thêm hiển thị (d-block)
-    practiceView.classList.remove('d-none');
-    practiceView.classList.add('d-block');
-    
-    // Khởi tạo danh sách chủ đề nếu cần
-    if (typeof loadPracticeTopics === 'function') {
-      loadPracticeTopics();
-    }
-  }
+// Thay cho hàm sửa cũ
+function bieuMauCapNhat(rowIndex, obj) {
+    sendDataToGoogleSheet("update", rowIndex, obj, "Đã cập nhật dữ liệu thành công!");
+}
+
+// Thay cho hàm xóa cũ
+function bieuMauXoa(rowIndex) {
+    sendDataToGoogleSheet("delete", rowIndex, null, "Đã xóa dòng dữ liệu thành công!");
 }
 </script>
