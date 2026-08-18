@@ -1,0 +1,304 @@
+<div class="container-fluid py-3 h-100 d-flex flex-column">
+  
+  <!-- Thanh công cụ & Bộ lọc Luyện tập -->
+  <div class="card shadow-sm mb-3">
+    <div class="card-body p-3">
+      <div class="row g-2 align-items-center">
+        <!-- Bộ lọc Trình độ -->
+        <div class="col-6 col-md-2">
+          <label class="form-label small fw-bold mb-1">Trình độ</label>
+          <select id="practiceLevel" class="form-select form-select-sm" onchange="loadPracticeTopics()">
+            <option value="tiengDucA1">A1</option>
+            <option value="tiengDucA2">A2</option>
+          </select>
+        </div>
+
+        <!-- Bộ lọc Chủ đề -->
+        <div class="col-6 col-md-3">
+          <label class="form-label small fw-bold mb-1">Chủ đề</label>
+          <select id="practiceTopic" class="form-select form-select-sm">
+            <option value="">-- Tất cả chủ đề --</option>
+          </select>
+        </div>
+
+        <!-- Các Nút Thao tác -->
+        <div class="col-12 col-md-4 d-flex gap-2 align-items-end">
+          <button class="btn btn-primary-custom btn-sm flex-fill" onclick="startPractice()">
+            <i class="fa-solid fa-shuffle me-1"></i> Bắt đầu (50 từ)
+          </button>
+          <button class="btn btn-success btn-sm flex-fill" onclick="checkAllAnswers()" id="btnSubmitPractice" disabled>
+            <i class="fa-solid fa-check-double me-1"></i> Nộp bài
+          </button>
+          <button class="btn btn-outline-secondary btn-sm" onclick="resetPractice()" id="btnResetPractice">
+            <i class="fa-solid fa-rotate-right me-1"></i> Làm lại
+          </button>
+        </div>
+
+        <!-- Bảng Điểm / Thống Kê -->
+        <div class="col-12 col-md-3">
+          <div class="d-flex justify-content-around text-center p-2 bg-light rounded border">
+            <div>
+              <small class="text-muted d-block" style="font-size:0.75rem;">Đúng</small>
+              <span id="scoreCorrect" class="badge bg-success fs-6">0</span>
+            </div>
+            <div>
+              <small class="text-muted d-block" style="font-size:0.75rem;">Sai</small>
+              <span id="scoreWrong" class="badge bg-danger fs-6">0</span>
+            </div>
+            <div>
+              <small class="text-muted d-block" style="font-size:0.75rem;">Chưa làm</small>
+              <span id="scorePending" class="badge bg-secondary fs-6">0</span>
+            </div>
+            <div>
+              <small class="text-muted d-block" style="font-size:0.75rem;">Tỷ lệ</small>
+              <span id="scorePercent" class="fw-bold text-primary-custom">0%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bảng Dữ Liệu Bài Tập -->
+  <div class="table-wrapper flex-grow-1 shadow-sm bg-white rounded">
+    <table class="table table-hover table-bordered mb-0 align-middle" id="practiceTable">
+      <thead>
+        <tr>
+          <th width="50" class="text-center">STT</th>
+          <th width="150">Chủ đề</th>
+          <th width="240">Tiếng Đức</th>
+          <th>Nhập nghĩa Tiếng Việt</th>
+          <th width="220" class="text-center">Kết quả</th>
+        </tr>
+      </thead>
+      <tbody id="practiceTableBody">
+        <tr>
+          <td colspan="5" class="text-center text-muted py-5">
+            <i class="fa-solid fa-graduation-cap fa-3x mb-3 text-secondary"></i>
+            <div>Vui lòng chọn <strong>Trình độ</strong>, <strong>Chủ đề</strong> và bấm <strong>"Bắt đầu (50 từ)"</strong> để chọn ngẫu nhiên bài tập.</div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  let practiceWords = [];
+  let practiceRawData = [];
+
+  // Khởi tạo danh sách chủ đề cho bộ lọc Luyện tập
+  function loadPracticeTopics() {
+    const level = document.getElementById('practiceLevel').value;
+    google.script.run.withSuccessHandler((data) => {
+      practiceRawData = data;
+      const topics = [...new Set(data.map(item => item.chuDe))].filter(Boolean);
+      const select = document.getElementById('practiceTopic');
+      select.innerHTML = '<option value="">-- Tất cả chủ đề --</option>';
+      topics.forEach(t => {
+        select.innerHTML += `<option value="${t}">${t}</option>`;
+      });
+    }).getData(level);
+  }
+
+  // Bắt đầu tạo bài tập 50 từ ngẫu nhiên
+  function startPractice() {
+    const level = document.getElementById('practiceLevel').value;
+    const topic = document.getElementById('practiceTopic').value;
+
+    document.getElementById('practiceTableBody').innerHTML = `
+      <tr>
+        <td colspan="5" class="text-center py-5">
+          <div class="spinner-border text-primary-custom" role="status"></div>
+          <div class="mt-2 text-muted">Đang khởi tạo bài tập ngẫu nhiên...</div>
+        </td>
+      </tr>
+    `;
+
+    google.script.run.withSuccessHandler((data) => {
+      practiceRawData = data;
+      let filtered = data;
+      if (topic) {
+        filtered = filtered.filter(item => item.chuDe === topic);
+      }
+
+      if (!filtered || filtered.length === 0) {
+        showToast('Không có từ vựng nào thuộc chủ đề này!', 'danger');
+        document.getElementById('practiceTableBody').innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Không tìm thấy dữ liệu.</td></tr>';
+        return;
+      }
+
+      // Xáo trộn ngẫu nhiên (Fisher-Yates / Shuffle)
+      let shuffled = [...filtered].sort(() => 0.5 - Math.random());
+      
+      // Lấy tối đa 50 từ
+      practiceWords = shuffled.slice(0, 50);
+
+      renderPracticeTable();
+      document.getElementById('btnSubmitPractice').disabled = false;
+      updateScoreboard(0, 0, practiceWords.length, 0);
+      showToast(`Đã tạo ngẫu nhiên ${practiceWords.length} từ để luyện tập!`, 'success');
+    }).getData(level);
+  }
+
+  // Hiển thị bảng từ vựng luyện tập
+  function renderPracticeTable() {
+    const tbody = document.getElementById('practiceTableBody');
+    tbody.innerHTML = '';
+
+    practiceWords.forEach((item, index) => {
+      tbody.innerHTML += `
+        <tr id="practiceRow_${index}">
+          <td class="text-center fw-bold">${index + 1}</td>
+          <td><span class="badge bg-secondary">${item.chuDe}</span></td>
+          <td class="fw-bold text-primary-custom">
+            <div class="d-flex align-items-center justify-content-between gap-1">
+              <span>${item.maoTu ? `<small class="text-muted fw-normal">(${item.maoTu})</small> ` : ''}${item.tiengDuc}</span>
+              <button class="btn btn-sm btn-speak p-0 border-0" data-text="${encodeURIComponent(item.tiengDuc)}" onclick="speakGerman(this)" title="Nghe đọc">
+                <i class="fa-solid fa-volume-high"></i>
+              </button>
+            </div>
+          </td>
+          <td>
+            <input type="text" class="form-control form-control-sm practice-input" 
+                   id="input_${index}" 
+                   placeholder="Nhập nghĩa tiếng Việt..." 
+                   autocomplete="off"
+                   onkeyup="handlePracticeKeyup(event, ${index})" 
+                   onchange="checkSingleAnswer(${index})">
+          </td>
+          <td class="text-center" id="result_${index}">
+            <span class="badge bg-light text-dark border">Chưa làm</span>
+          </td>
+        </tr>
+      `;
+    });
+  }
+
+  // Nhấn Enter tự động chấm và chuyển sang dòng tiếp theo
+  function handlePracticeKeyup(event, index) {
+    if (event.key === 'Enter') {
+      checkSingleAnswer(index);
+      const nextInput = document.getElementById(`input_${index + 1}`);
+      if (nextInput) {
+        nextInput.focus();
+      } else {
+        checkAllAnswers();
+      }
+    }
+  }
+
+  // Chuẩn hóa văn bản để so sánh thông minh
+  function normalizeText(str) {
+    if (!str) return '';
+    return str.toString()
+      .toLowerCase()
+      .trim()
+      .replace(/[\/(),;.\-]/g, ' ') // Thay dấu phân cách thành khoảng trắng
+      .replace(/\s+/g, ' ');       // Rút gọn nhiều khoảng trắng thành 1
+  }
+
+  // Kiểm tra câu trả lời
+  function isAnswerCorrect(userAns, targetAns) {
+    if (!userAns || !targetAns) return false;
+
+    const normUser = normalizeText(userAns);
+    const normTarget = normalizeText(targetAns);
+
+    if (normUser === normTarget) return true;
+
+    // Tách các nghĩa trong đáp án (ngăn cách bởi phẩy, chấm phẩy, gạch chéo)
+    const meanings = targetAns.split(/[,;\/\(\)]+/).map(m => normalizeText(m)).filter(m => m.length > 0);
+    
+    // Đúng nếu nhập khớp bất kỳ 1 nghĩa nào trong các nghĩa được liệt kê
+    return meanings.some(m => m === normUser || (normUser.length >= 2 && m.includes(normUser)));
+  }
+
+  // Chấm câu đơn lẻ khi nhập xong
+  function checkSingleAnswer(index) {
+    const inputEl = document.getElementById(`input_${index}`);
+    const resultEl = document.getElementById(`result_${index}`);
+    if (!inputEl || !resultEl) return;
+
+    const userVal = inputEl.value.trim();
+    if (!userVal) {
+      resultEl.innerHTML = `<span class="badge bg-light text-dark border">Chưa làm</span>`;
+      inputEl.classList.remove('is-valid', 'is-invalid');
+      recalculateScore();
+      return;
+    }
+
+    const correctVal = practiceWords[index].nghiaTV;
+    const isCorrect = isAnswerCorrect(userVal, correctVal);
+
+    if (isCorrect) {
+      inputEl.classList.add('is-valid');
+      inputEl.classList.remove('is-invalid');
+      resultEl.innerHTML = `<span class="badge bg-success py-1 px-2"><i class="fa-solid fa-check me-1"></i>Đúng</span>`;
+    } else {
+      inputEl.classList.add('is-invalid');
+      inputEl.classList.remove('is-valid');
+      resultEl.innerHTML = `
+        <div class="d-flex flex-column align-items-center">
+          <span class="badge bg-danger py-1 px-2 mb-1"><i class="fa-solid fa-xmark me-1"></i>Sai</span>
+          <small class="text-success fw-bold" style="font-size:0.75rem;">ĐA: ${correctVal}</small>
+        </div>
+      `;
+    }
+
+    recalculateScore();
+  }
+
+  // Nộp bài & Kiểm tra toàn bộ bài tập
+  function checkAllAnswers() {
+    if (practiceWords.length === 0) return;
+
+    practiceWords.forEach((_, index) => {
+      checkSingleAnswer(index);
+    });
+
+    const correctCount = document.querySelectorAll('#practiceTableBody .badge.bg-success').length;
+    showToast(`Bạn đã trả lời đúng ${correctCount}/${practiceWords.length} câu!`, correctCount === practiceWords.length ? 'success' : 'primary');
+  }
+
+  // Cập nhật lại Bảng điểm
+  function recalculateScore() {
+    const total = practiceWords.length;
+    const correctCount = document.querySelectorAll('#practiceTableBody .badge.bg-success').length;
+    const wrongCount = document.querySelectorAll('#practiceTableBody .badge.bg-danger').length;
+    const pendingCount = total - correctCount - wrongCount;
+    const percent = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+
+    updateScoreboard(correctCount, wrongCount, pendingCount, percent);
+  }
+
+  function updateScoreboard(c, w, p, pct) {
+    document.getElementById('scoreCorrect').innerText = c;
+    document.getElementById('scoreWrong').innerText = w;
+    document.getElementById('scorePending').innerText = p;
+    document.getElementById('scorePercent').innerText = pct + '%';
+  }
+
+  // Tải lại bài tập hiện tại
+  function resetPractice() {
+    if (practiceWords.length === 0) return;
+    practiceWords.forEach((_, index) => {
+      const inputEl = document.getElementById(`input_${index}`);
+      const resultEl = document.getElementById(`result_${index}`);
+      if (inputEl) {
+        inputEl.value = '';
+        inputEl.classList.remove('is-valid', 'is-invalid');
+      }
+      if (resultEl) {
+        resultEl.innerHTML = `<span class="badge bg-light text-dark border">Chưa làm</span>`;
+      }
+    });
+    updateScoreboard(0, 0, practiceWords.length, 0);
+    showToast('Đã làm mới bài tập!', 'primary');
+  }
+
+  // Tự động nạp danh sách chủ đề lần đầu khi load file
+  document.addEventListener("DOMContentLoaded", () => {
+    loadPracticeTopics();
+  });
+</script>
