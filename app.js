@@ -231,16 +231,7 @@ function displayData() {
       <td>${escapeHtml(item.nghiaTV)}</td>
       <td>${escapeHtml(item.viDu)}</td>
       <td>${escapeHtml(item.dichViDu)}</td>
-      <td class="text-center text-nowrap">
-        <button class="btn btn-sm btn-outline-primary me-1"
-                onclick="openModal('edit', ${Number(item.rowIndex)})" title="Sửa">
-          <i class="fa-solid fa-pen"></i>
-        </button>
-        <button class="btn btn-sm btn-outline-danger"
-                onclick="openDeleteModal(${Number(item.rowIndex)})" title="Xóa">
-          <i class="fa-solid fa-trash"></i>
-        </button>
-      </td>
+     
     </tr>
   `).join("");
 
