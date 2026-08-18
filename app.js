@@ -198,7 +198,7 @@ function displayData() {
   if (pageData.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="11" class="text-center text-muted py-5">
+        <td colspan="10" class="text-center text-muted py-5">
           Không tìm thấy dữ liệu.
         </td>
       </tr>`;
