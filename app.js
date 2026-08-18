@@ -113,7 +113,7 @@ async function loadData() {
   if (tbody) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="11" class="text-center py-5">
+        <td colspan="10" class="text-center py-5">
           <div class="spinner-border text-primary-custom"></div>
           <div class="mt-2 text-muted">Đang tải dữ liệu...</div>
         </td>
@@ -131,7 +131,7 @@ async function loadData() {
     if (tbody) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="11" class="text-center text-danger py-5">
+          <td colspan="10" class="text-center text-danger py-5">
             <i class="fa-solid fa-triangle-exclamation fa-2x mb-2"></i>
             <div>Không tải được dữ liệu.</div>
             <small>${escapeHtml(error.message)}</small>
