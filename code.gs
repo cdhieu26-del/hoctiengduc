@@ -1,4 +1,4 @@
-function doGet() {
+function doGet(e) {
   let sheetName = (e && e.parameter && e.parameter.sheet) ? e.parameter.sheet : 'tiengDucA1';
   
   // Gọi hàm getData đã có sẵn của bạn để lấy mảng dữ liệu
