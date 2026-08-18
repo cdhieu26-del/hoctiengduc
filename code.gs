@@ -1,8 +1,12 @@
 function doGet() {
-  return HtmlService.createTemplateFromFile('Index')
-    .evaluate()
-    .setTitle('Học Tiếng Đức A1-A2')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
+  let sheetName = (e && e.parameter && e.parameter.sheet) ? e.parameter.sheet : 'tiengDucA1';
+  
+  // Gọi hàm getData đã có sẵn của bạn để lấy mảng dữ liệu
+  let data = getData(sheetName);
+  
+  // Trả về dữ liệu dạng JSON để GitHub fetch() đọc được
+  return ContentService.createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function include(filename) {
