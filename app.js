@@ -4,7 +4,7 @@
    CHỈ CẦN SỬA API_URL BÊN DƯỚI thành URL Web App Apps Script.
    ========================================================= */
 
-const API_URL = "https://script.google.com/macros/s/AKfycbzbO6lSjrIsMri6pLvdWREMcWSxslYud61QzI3D3YE/dev";
+const API_URL = "https://script.google.com/macros/s/AKfycbxKDBNJ5OKpZ-YsslFNOCIVn1qAp4LDW25ShEuowDHqAI5LOGDqPu8-KB6jXeYhPi1-/exec";
 
 let currentSheet = "tiengDucA1";
 let allData = [];
@@ -113,7 +113,7 @@ async function loadData() {
   if (tbody) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="10" class="text-center py-5">
+        <td colspan="11" class="text-center py-5">
           <div class="spinner-border text-primary-custom"></div>
           <div class="mt-2 text-muted">Đang tải dữ liệu...</div>
         </td>
@@ -131,7 +131,7 @@ async function loadData() {
     if (tbody) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="10" class="text-center text-danger py-5">
+          <td colspan="11" class="text-center text-danger py-5">
             <i class="fa-solid fa-triangle-exclamation fa-2x mb-2"></i>
             <div>Không tải được dữ liệu.</div>
             <small>${escapeHtml(error.message)}</small>
@@ -198,7 +198,7 @@ function displayData() {
   if (pageData.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="10" class="text-center text-muted py-5">
+        <td colspan="11" class="text-center text-muted py-5">
           Không tìm thấy dữ liệu.
         </td>
       </tr>`;
@@ -231,7 +231,16 @@ function displayData() {
       <td>${escapeHtml(item.nghiaTV)}</td>
       <td>${escapeHtml(item.viDu)}</td>
       <td>${escapeHtml(item.dichViDu)}</td>
-     
+      <td class="text-center text-nowrap">
+        <button class="btn btn-sm btn-outline-primary me-1"
+                onclick="openModal('edit', ${Number(item.rowIndex)})" title="Sửa">
+          <i class="fa-solid fa-pen"></i>
+        </button>
+        <button class="btn btn-sm btn-outline-danger"
+                onclick="openDeleteModal(${Number(item.rowIndex)})" title="Xóa">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+      </td>
     </tr>
   `).join("");
 
