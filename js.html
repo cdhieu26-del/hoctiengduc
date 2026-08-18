@@ -1,4 +1,5 @@
 <script>
+  const URL_WEB_APP = "https://script.google.com/macros/s/AKfycbzbO6lSjrIsMri6pLvdWREMcWSxslYud61QzI3D3YE/dev";
   let currentSheet = 'tiengDucA1';
   let allData = [];
   let filteredData = [];
@@ -24,17 +25,20 @@
   }
 
   // Tải dữ liệu từ GS
-  function loadData() {
+ function loadData() {
     document.getElementById('loading').style.display = 'block';
     document.getElementById('tableBody').innerHTML = '';
-    
-    google.script.run.withSuccessHandler((res) => {
-      allData = res;
-      populateTopics();
-      applyFilters();
-      document.getElementById('loading').style.display = 'none';
-    }).getData(currentSheet);
-  }
+
+    // XÓA đoạn google.script.run cũ đi và THAY BẰNG ĐOẠN FETCH NÀY:
+    fetch(`${URL_WEB_APP}?sheet=${currentSheet}`)
+    .then(response => response.json())
+    .then(res => {
+        allData = res;
+        populateTopics();
+        // Nếu có đoạn ẩn chữ 'loading' hoặc hiện bảng thì giữ nguyên cấu trúc cũ của bạn
+    })
+    .catch(error => console.error("Lỗi tải dữ liệu:", error));
+}
 
   // Đổ Chủ đề vào filter
   function populateTopics() {
