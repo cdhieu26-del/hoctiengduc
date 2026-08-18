@@ -4,7 +4,7 @@
    CHỈ CẦN SỬA API_URL BÊN DƯỚI thành URL Web App Apps Script.
    ========================================================= */
 
-const API_URL = "https://script.google.com/macros/s/AKfycbxKDBNJ5OKpZ-YsslFNOCIVn1qAp4LDW25ShEuowDHqAI5LOGDqPu8-KB6jXeYhPi1-/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwJiMk5y8cKB9PNqfpKr4C6Ms5h6xWWrmBAH3FQS8SrlR1TF6EypO7vR-jfXHN70i_-/exec";
 
 let currentSheet = "tiengDucA1";
 let allData = [];
