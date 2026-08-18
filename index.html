@@ -9,7 +9,153 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <!-- Font Awesome 6 Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  
+  <style>
+  :root {
+    --primary-color: #016a70;
+    --primary-hover: #015155;
+    --bg-color: #f4f6f9;
+  }
+
+  body {
+    background-color: var(--bg-color);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    height: 100vh;
+    overflow: hidden; /* Prevent body scroll, let table scroll */
+  }
+
+  .navbar {
+    background-color: var(--primary-color);
+  }
+
+  /* Full screen app layout */
+  .main-container {
+    height: calc(100vh - 60px);
+    padding: 15px;
+  }
+
+  .btn-primary-custom {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+  }
+  .btn-primary-custom:hover {
+    background-color: var(--primary-hover);
+    color: white;
+  }
+
+  .text-primary-custom {
+    color: var(--primary-color) !important;
+  }
+
+  /* Table Scroll & Sticky Header */
+  .table-wrapper {
+    overflow-y: auto;
+    overflow-x: auto;
+    max-height: 100%;
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  #dataTable thead th {
+    position: sticky;
+    top: 0;
+    background-color: var(--primary-color);
+    color: white;
+    z-index: 2;
+    box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
+    white-space: nowrap;
+  }
+
+  #dataTable tbody td {
+    vertical-align: middle;
+  }
+
+  /* Tabs styling */
+  .custom-tabs .nav-link {
+    color: rgba(255,255,255,0.7);
+    margin-left: 10px;
+  }
+  .custom-tabs .nav-link.active {
+    background-color: white;
+    color: var(--primary-color);
+    font-weight: bold;
+  }
+
+  /* Modal styling */
+  .modal-header {
+    background-color: var(--primary-color);
+    color: white;
+  }
+
+  /* Responsive Filter Mobile */
+  @media (max-width: 768px) {
+    #filterSection {
+      margin-top: 10px;
+      padding: 10px;
+      background: white;
+      border-radius: 5px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+  }
+  /* Styling Pagination Hiện Đại */
+.pagination-container {
+  border: 1px solid #e9ecef;
+}
+
+.pagination .page-link {
+  color: var(--primary-color);
+  border: 1px solid #dee2e6;
+  padding: 6px 12px;
+  font-weight: 500;
+  border-radius: 6px !important;
+  margin: 0 2px;
+  transition: all 0.2s ease-in-out;
+}
+
+.pagination .page-link:hover {
+  color: #fff;
+  background-color: var(--primary-hover);
+  border-color: var(--primary-hover);
+  transform: translateY(-1px);
+}
+
+.pagination .page-item.active .page-link {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: #fff;
+  box-shadow: 0 2px 5px rgba(1, 106, 112, 0.3);
+}
+
+.pagination .page-item.disabled .page-link {
+  color: #adb5bd;
+  background-color: #f8f9fa;
+  border-color: #e9ecef;
+  opacity: 0.7;
+}
+
+.pagination .page-item.ellipsis .page-link {
+  border: none;
+  background: transparent;
+  color: #6c757d;
+  cursor: default;
+  pointer-events: none;
+}
+/* Styling cho nút phát âm */
+.btn-speak {
+  color: var(--primary-color);
+  background: transparent;
+  font-size: 0.95rem;
+  padding: 2px 6px !important;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.btn-speak:hover {
+  color: var(--primary-hover);
+  background-color: rgba(1, 106, 112, 0.1);
+  transform: scale(1.1);
+}
+</style>
 </head>
 <body>
 
