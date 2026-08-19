@@ -640,3 +640,177 @@ function resetPractice() {
   updateScoreboard(0, 0, practiceWords.length, 0);
   document.getElementById("btnSubmitPractice").disabled = practiceWords.length === 0;
 }
+/* =========================================================
+   BỔ SUNG: TÍNH NĂNG GHI ÂM VÀ ĐỐI CHIẾU PHÁT ÂM VỚI IPA
+   ========================================================= */
+
+// Khai báo Web Speech API
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+
+if (SpeechRecognition) {
+  recognition = new SpeechRecognition();
+  recognition.lang = "de-DE"; // Nhận dạng tiếng Đức
+  recognition.continuous = false;
+  recognition.interimResults = false;
+}
+
+// 1. Cập nhật Render Bảng Luyện Tập bao gồm Nút Ghi âm
+function renderPracticeTable() {
+  const tbody = document.getElementById("practiceTableBody");
+  if (!tbody) return;
+
+  tbody.innerHTML = practiceWords.map((item, index) => `
+    <tr id="practiceRow_${index}">
+      <td class="text-center fw-bold">${index + 1}</td>
+      <td><span class="badge bg-secondary">${escapeHtml(item.chuDe)}</span></td>
+      <td class="fw-bold text-primary-custom">
+        <div class="d-flex align-items-center justify-content-between gap-1">
+          <div>
+            <div>
+              ${item.maoTu ? `<small class="text-muted fw-normal">(${escapeHtml(item.maoTu)})</small> ` : ""}
+              ${escapeHtml(item.tiengDuc)}
+            </div>
+            <small class="text-muted fst-italic font-monospace" style="font-size: 0.8rem;">
+              ${escapeHtml(item.ipa || "")}
+            </small>
+          </div>
+          <button class="btn btn-sm btn-speak p-0 border-0"
+                  data-text="${encodeURIComponent(item.tiengDuc || "")}"
+                  onclick="speakGerman(this)" title="Nghe mẫu">
+            <i class="fa-solid fa-volume-high"></i>
+          </button>
+        </div>
+      </td>
+      <td>
+        <input type="text" class="form-control form-control-sm practice-input"
+               id="input_${index}"
+               placeholder="Nhập nghĩa tiếng Việt..."
+               autocomplete="off"
+               onkeyup="handlePracticeKeyup(event, ${index})"
+               onchange="checkSingleAnswer(${index})">
+      </td>
+      <!-- Cột Ghi âm & Khớp phát âm -->
+      <td>
+        <div class="d-flex align-items-center justify-content-center gap-2">
+          <button class="btn btn-sm btn-outline-danger" id="btnRecord_${index}" onclick="toggleRecord(${index})" title="Bấm để nói">
+            <i class="fa-solid fa-microphone"></i>
+          </button>
+          <div class="text-start flex-grow-1" style="line-height: 1.2;">
+            <div id="speechText_${index}" class="small text-muted fst-italic" style="min-height: 18px;">Chưa ghi âm</div>
+            <div id="speechMatch_${index}"></div>
+          </div>
+        </div>
+      </td>
+      <td class="text-center practice-result" id="result_${index}">
+        <span class="badge bg-light text-dark border">Chưa làm</span>
+      </td>
+    </tr>
+  `).join("");
+}
+
+// 2. Xử lý Ghi âm và Nhận diện giọng nói
+function toggleRecord(index) {
+  if (!recognition) {
+    showToast("Trình duyệt của bạn không hỗ trợ Web Speech API (Hãy dùng Chrome/Edge).", "warning");
+    return;
+  }
+
+  const btn = document.getElementById(`btnRecord_${index}`);
+  const statusText = document.getElementById(`speechText_${index}`);
+  const targetWord = practiceWords[index]?.tiengDuc || "";
+
+  // Bắt đầu thu âm
+  btn.classList.replace("btn-outline-danger", "btn-danger");
+  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
+  statusText.textContent = "Đang nghe...";
+
+  recognition.start();
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    statusText.textContent = `"${transcript}"`;
+    
+    // Đối chiếu phát âm ghi nhận được với Từ vựng / IPA
+    verifyPronunciation(index, transcript, targetWord);
+  };
+
+  recognition.onerror = (event) => {
+    console.error("Lỗi nhận dạng giọng nói:", event.error);
+    statusText.textContent = "Lỗi nhận dạng!";
+    resetRecordButton(index);
+  };
+
+  recognition.onend = () => {
+    resetRecordButton(index);
+  };
+}
+
+function resetRecordButton(index) {
+  const btn = document.getElementById(`btnRecord_${index}`);
+  if (btn) {
+    btn.classList.replace("btn-danger", "btn-outline-danger");
+    btn.innerHTML = `<i class="fa-solid fa-microphone"></i>`;
+  }
+}
+
+// 3. Hàm Đối chiếu giọng nói nhận diện với Từ/IPA chuẩn
+function verifyPronunciation(index, transcript, targetWord) {
+  const matchContainer = document.getElementById(`speechMatch_${index}`);
+  if (!matchContainer) return;
+
+  const cleanTranscript = normalizeGermanText(transcript);
+  const cleanTarget = normalizeGermanText(targetWord);
+
+  // Tính độ tương đồng giữa từ nói ra và từ mục tiêu
+  const similarity = calculateSimilarity(cleanTranscript, cleanTarget);
+
+  if (similarity >= 0.85 || cleanTranscript === cleanTarget) {
+    matchContainer.innerHTML = `
+      <span class="badge bg-success" style="font-size:0.7rem;">
+        <i class="fa-solid fa-circle-check me-1"></i>Phát âm chuẩn (${Math.round(similarity * 100)}%)
+      </span>`;
+  } else if (similarity >= 0.5) {
+    matchContainer.innerHTML = `
+      <span class="badge bg-warning text-dark" style="font-size:0.7rem;">
+        <i class="fa-solid fa-triangle-exclamation me-1"></i>Gần đúng (${Math.round(similarity * 100)}%)
+      </span>`;
+  } else {
+    matchContainer.innerHTML = `
+      <span class="badge bg-danger" style="font-size:0.7rem;">
+        <i class="fa-solid fa-circle-xmark me-1"></i>Chưa chuẩn (${Math.round(similarity * 100)}%)
+      </span>`;
+  }
+}
+
+// Chuẩn hóa văn bản tiếng Đức
+function normalizeGermanText(text) {
+  return String(text || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
+}
+
+// Thuật toán Levenshtein Distance tính độ tương đồng giữa 2 chuỗi
+function calculateSimilarity(str1, str2) {
+  if (!str1 || !str2) return 0;
+  const track = Array(str2.length + 1).fill(null).map(() =>
+    Array(str1.length + 1).fill(null));
+
+  for (let i = 0; i <= str1.length; i += 1) track[0][i] = i;
+  for (let j = 0; j <= str2.length; j += 1) track[j][0] = j;
+
+  for (let j = 1; j <= str2.length; j += 1) {
+    for (let i = 1; i <= str1.length; i += 1) {
+      const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
+      track[j][i] = Math.min(
+        track[j][i - 1] + 1,
+        track[j - 1][i] + 1,
+        track[j - 1][i - 1] + indicator,
+      );
+    }
+  }
+
+  const maxLength = Math.max(str1.length, str2.length);
+  return (maxLength - track[str2.length][str1.length]) / maxLength;
+}
