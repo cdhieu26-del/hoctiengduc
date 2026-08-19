@@ -347,7 +347,8 @@ async function startPractice() {
   }
 }
 
-/* RENDER CỘT GHI ÂM VÀ THU ÂM CHUẨN ĐÚNG NÓI */
+/* ================= THAY THẾ HÀM RENDER TRONG APP.JS ================= */
+
 function renderPracticeTable() {
   const tbody = document.getElementById("practiceTableBody");
   if (!tbody) return;
@@ -382,10 +383,11 @@ function renderPracticeTable() {
                onkeyup="handlePracticeKeyup(event, ${index})"
                onchange="checkSingleAnswer(${index})">
       </td>
-      <!-- Cột Thu Âm & Chấm Điểm Phát Âm -->
+      
+      <!-- CỘT GHI ÂM (BẮT BỘC CÓ NÚT MICRO) -->
       <td>
         <div class="d-flex align-items-center justify-content-center gap-2">
-          <button class="btn btn-sm btn-outline-danger" id="btnRecord_${index}" onclick="toggleRecord(${index})" title="Bấm để phát âm thử">
+          <button class="btn btn-sm btn-outline-danger" id="btnRecord_${index}" onclick="toggleRecord(${index})" title="Bấm để ghi âm">
             <i class="fa-solid fa-microphone"></i>
           </button>
           <div class="text-start flex-grow-1" style="line-height: 1.2;">
@@ -394,6 +396,7 @@ function renderPracticeTable() {
           </div>
         </div>
       </td>
+
       <td class="text-center practice-result" id="result_${index}">
         <span class="badge bg-light text-dark border">Chưa làm</span>
       </td>
@@ -401,17 +404,17 @@ function renderPracticeTable() {
   `).join("");
 }
 
-/* ---------- Thu Âm và Nhận Dạng Giọng Nói ---------- */
-
 function toggleRecord(index) {
   if (!recognition) {
-    showToast("Trình duyệt không hỗ trợ Web Speech API. Vui lòng dùng Google Chrome.", "warning");
+    showToast("Trình duyệt không hỗ trợ Web Speech API. Vui lòng dùng Chrome/Edge.", "warning");
     return;
   }
 
   const btn = document.getElementById(`btnRecord_${index}`);
   const statusText = document.getElementById(`speechText_${index}`);
   const targetWord = practiceWords[index]?.tiengDuc || "";
+
+  if (!btn) return;
 
   btn.className = "btn btn-sm btn-danger";
   btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
@@ -426,7 +429,7 @@ function toggleRecord(index) {
   };
 
   recognition.onerror = () => {
-    statusText.textContent = "Lỗi nhận diện / Không thấy mic";
+    statusText.textContent = "Không nghe rõ / Lỗi mic";
     resetRecordButton(index);
   };
 
