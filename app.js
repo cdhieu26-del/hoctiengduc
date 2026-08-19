@@ -1,7 +1,5 @@
 /* =========================================================
-   HỌC TIẾNG ĐỨC A1-A2 - FRONTEND CHO GITHUB PAGES
-   =========================================================
-   CHỈ CẦN SỬA API_URL BÊN DƯỚI thành URL Web App Apps Script.
+   HỌC TIẾNG ĐỨC A1-A2 - JS HOÀN CHỈNH
    ========================================================= */
 
 const API_URL = "https://script.google.com/macros/s/AKfycbxKDBNJ5OKpZ-YsslFNOCIVn1qAp4LDW25ShEuowDHqAI5LOGDqPu8-KB6jXeYhPi1-/exec";
@@ -14,6 +12,17 @@ const rowsPerPage = 50;
 
 let practiceWords = [];
 let practiceRawData = [];
+
+/* ---------- Web Speech API ---------- */
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+
+if (SpeechRecognition) {
+  recognition = new SpeechRecognition();
+  recognition.lang = "de-DE"; // Thu âm & Nhận dạng giọng nói chuẩn tiếng Đức
+  recognition.continuous = false;
+  recognition.interimResults = false;
+}
 
 /* ---------- Helpers ---------- */
 
@@ -53,7 +62,6 @@ async function apiGet(sheetName) {
 }
 
 async function apiPost(payload) {
-  // Không đặt Content-Type để tránh CORS preflight khi gọi từ GitHub Pages.
   const response = await fetch(API_URL, {
     method: "POST",
     body: JSON.stringify(payload)
@@ -86,12 +94,11 @@ function switchView(view) {
   }
 }
 
-/* ---------- Vocabulary ---------- */
+/* ---------- Vocabulary View ---------- */
 
 document.addEventListener("DOMContentLoaded", () => {
   const level = document.getElementById("filterLevel");
   if (level) currentSheet = level.value || "tiengDucA1";
-
   loadData();
 });
 
@@ -101,8 +108,6 @@ function changeLevel(level) {
 
   const filterLevel = document.getElementById("filterLevel");
   if (filterLevel) filterLevel.value = currentSheet;
-
-  document.querySelectorAll(".custom-tabs .nav-link").forEach(el => el.classList.remove("active"));
 
   loadData();
 }
@@ -138,7 +143,7 @@ async function loadData() {
           </td>
         </tr>`;
     }
-    showToast("Không thể kết nối Google Sheets. Kiểm tra API_URL và quyền Web App.", "danger");
+    showToast("Không thể kết nối Google Sheets.", "danger");
   } finally {
     setLoading(false);
   }
@@ -154,10 +159,7 @@ function populateTopics() {
 
   select.innerHTML = `<option value="">-- Tất cả chủ đề --</option>`;
   topics.forEach(topic => {
-    select.insertAdjacentHTML(
-      "beforeend",
-      `<option value="${escapeHtml(topic)}">${escapeHtml(topic)}</option>`
-    );
+    select.insertAdjacentHTML("beforeend", `<option value="${escapeHtml(topic)}">${escapeHtml(topic)}</option>`);
   });
 
   if (topics.includes(oldValue)) select.value = oldValue;
@@ -196,12 +198,7 @@ function displayData() {
   const pageData = filteredData.slice(start, start + rowsPerPage);
 
   if (pageData.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="10" class="text-center text-muted py-5">
-          Không tìm thấy dữ liệu.
-        </td>
-      </tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" class="text-center text-muted py-5">Không tìm thấy dữ liệu.</td></tr>`;
     renderPagination(0, 0, 0);
     return;
   }
@@ -219,7 +216,7 @@ function displayData() {
           ${item.tiengDuc ? `
             <button class="btn btn-sm btn-speak p-0 border-0"
                     data-text="${encodeURIComponent(item.tiengDuc)}"
-                    onclick="speakGerman(this)" title="Nghe đọc">
+                    onclick="speakGerman(this)" title="Nghe đọc mẫu">
               <i class="fa-solid fa-volume-high"></i>
             </button>` : ""}
         </div>
@@ -253,33 +250,17 @@ function renderPagination(total, page, totalPages) {
   pageInfo.textContent = `Hiển thị ${start}-${end} / ${total}`;
 
   const buttons = [];
-  buttons.push(`
-    <li class="page-item ${page === 1 ? "disabled" : ""}">
-      <button class="page-link" onclick="goToPage(${page - 1})">‹</button>
-    </li>`);
+  buttons.push(`<li class="page-item ${page === 1 ? "disabled" : ""}"><button class="page-link" onclick="goToPage(${page - 1})">‹</button></li>`);
 
-  const pages = [];
   for (let p = 1; p <= totalPages; p++) {
-    if (p === 1 || p === totalPages || Math.abs(p - page) <= 1) pages.push(p);
-    else if (pages[pages.length - 1] !== "...") pages.push("...");
+    if (p === 1 || p === totalPages || Math.abs(p - page) <= 1) {
+      buttons.push(`<li class="page-item ${p === page ? "active" : ""}"><button class="page-link" onclick="goToPage(${p})">${p}</button></li>`);
+    } else if (buttons[buttons.length - 1] !== '<li class="page-item disabled"><span class="page-link">…</span></li>') {
+      buttons.push(`<li class="page-item disabled"><span class="page-link">…</span></li>`);
+    }
   }
 
-  pages.forEach(p => {
-    if (p === "...") {
-      buttons.push(`<li class="page-item ellipsis"><span class="page-link">…</span></li>`);
-    } else {
-      buttons.push(`
-        <li class="page-item ${p === page ? "active" : ""}">
-          <button class="page-link" onclick="goToPage(${p})">${p}</button>
-        </li>`);
-    }
-  });
-
-  buttons.push(`
-    <li class="page-item ${page === totalPages ? "disabled" : ""}">
-      <button class="page-link" onclick="goToPage(${page + 1})">›</button>
-    </li>`);
-
+  buttons.push(`<li class="page-item ${page === totalPages ? "disabled" : ""}"><button class="page-link" onclick="goToPage(${page + 1})">›</button></li>`);
   pagination.innerHTML = buttons.join("");
 }
 
@@ -288,13 +269,12 @@ function goToPage(page) {
   if (page < 1 || page > totalPages) return;
   currentPage = page;
   displayData();
-  document.querySelector(".table-wrapper")?.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function speakGerman(button) {
   const text = decodeURIComponent(button.dataset.text || "");
   if (!text || !("speechSynthesis" in window)) {
-    showToast("Trình duyệt không hỗ trợ đọc văn bản.", "warning");
+    showToast("Trình duyệt không hỗ trợ đọc âm thanh.", "warning");
     return;
   }
 
@@ -305,123 +285,7 @@ function speakGerman(button) {
   window.speechSynthesis.speak(utterance);
 }
 
-/* ---------- Add / Edit / Delete ---------- */
-
-function getFormData() {
-  return {
-    chuDe: document.getElementById("chuDe").value,
-    tiengDuc: document.getElementById("tiengDuc").value,
-    ipa: document.getElementById("ipa").value,
-    tuLoai: document.getElementById("tuLoai").value,
-    maoTu: document.getElementById("maoTu").value,
-    soNhieu: document.getElementById("soNhieu").value,
-    nghiaTV: document.getElementById("nghiaTV").value,
-    viDu: document.getElementById("viDu").value,
-    dichViDu: document.getElementById("dichViDu").value
-  };
-}
-
-function fillForm(item) {
-  document.getElementById("chuDe").value = item.chuDe || "";
-  document.getElementById("tiengDuc").value = item.tiengDuc || "";
-  document.getElementById("ipa").value = item.ipa || "";
-  document.getElementById("tuLoai").value = item.tuLoai || "";
-  document.getElementById("maoTu").value = item.maoTu || "";
-  document.getElementById("soNhieu").value = item.soNhieu || "";
-  document.getElementById("nghiaTV").value = item.nghiaTV || "";
-  document.getElementById("viDu").value = item.viDu || "";
-  document.getElementById("dichViDu").value = item.dichViDu || "";
-}
-
-function openModal(mode, rowIndex = null) {
-  const modalEl = document.getElementById("dataModal");
-  const form = document.getElementById("dataForm");
-  if (!modalEl || !form) return;
-
-  form.reset();
-  document.getElementById("rowIndex").value = "";
-
-  if (mode === "edit") {
-    const item = allData.find(x => Number(x.rowIndex) === Number(rowIndex));
-    if (!item) {
-      showToast("Không tìm thấy dòng dữ liệu.", "danger");
-      return;
-    }
-    document.getElementById("modalTitle").textContent = "Sửa từ vựng";
-    document.getElementById("rowIndex").value = item.rowIndex;
-    fillForm(item);
-  } else {
-    document.getElementById("modalTitle").textContent = "Thêm Từ Mới";
-  }
-
-  bootstrap.Modal.getOrCreateInstance(modalEl).show();
-}
-
-async function saveData() {
-  const form = document.getElementById("dataForm");
-  if (!form.checkValidity()) {
-    form.reportValidity();
-    return;
-  }
-
-  const rowIndex = document.getElementById("rowIndex").value;
-  const action = rowIndex ? "update" : "add";
-
-  try {
-    setLoading(true);
-    await apiPost({
-      action,
-      sheetName: currentSheet,
-      rowIndex: rowIndex ? Number(rowIndex) : null,
-      data: getFormData()
-    });
-
-    bootstrap.Modal.getOrCreateInstance(document.getElementById("dataModal")).hide();
-    showToast(action === "add" ? "Đã thêm dữ liệu." : "Đã cập nhật dữ liệu.", "success");
-    await loadData();
-  } catch (error) {
-    console.error(error);
-    showToast("Không lưu được: " + error.message, "danger");
-  } finally {
-    setLoading(false);
-  }
-}
-
-function openDeleteModal(rowIndex) {
-  document.getElementById("deleteRowIndex").value = rowIndex;
-  bootstrap.Modal.getOrCreateInstance(document.getElementById("deleteModal")).show();
-}
-
-async function confirmDelete() {
-  const rowIndex = Number(document.getElementById("deleteRowIndex").value);
-  if (!rowIndex) return;
-
-  try {
-    setLoading(true);
-    await apiPost({
-      action: "delete",
-      sheetName: currentSheet,
-      rowIndex,
-      data: null
-    });
-
-    bootstrap.Modal.getOrCreateInstance(document.getElementById("deleteModal")).hide();
-    showToast("Đã xóa dữ liệu.", "success");
-    await loadData();
-  } catch (error) {
-    console.error(error);
-    showToast("Không xóa được: " + error.message, "danger");
-  } finally {
-    setLoading(false);
-  }
-}
-
-/* Compatibility names */
-function bieuMauThemMoi(obj) { return apiPost({action:"add", sheetName:currentSheet, rowIndex:null, data:obj}); }
-function bieuMauCapNhat(rowIndex, obj) { return apiPost({action:"update", sheetName:currentSheet, rowIndex, data:obj}); }
-function bieuMauXoa(rowIndex) { return apiPost({action:"delete", sheetName:currentSheet, rowIndex, data:null}); }
-
-/* ---------- Practice: German -> Vietnamese ---------- */
+/* ---------- Practice & Record Section ---------- */
 
 async function getPracticeData(level) {
   return await apiGet(level);
@@ -441,14 +305,10 @@ async function loadPracticeTopics() {
 
     select.innerHTML = `<option value="">-- Tất cả chủ đề --</option>`;
     topics.forEach(topic => {
-      select.insertAdjacentHTML(
-        "beforeend",
-        `<option value="${escapeHtml(topic)}">${escapeHtml(topic)}</option>`
-      );
+      select.insertAdjacentHTML("beforeend", `<option value="${escapeHtml(topic)}">${escapeHtml(topic)}</option>`);
     });
   } catch (error) {
     console.error(error);
-    showToast("Không tải được dữ liệu luyện tập: " + error.message, "danger");
   }
 }
 
@@ -458,7 +318,7 @@ async function startPractice() {
   const tbody = document.getElementById("practiceTableBody");
 
   tbody.innerHTML = `
-    <tr><td colspan="5" class="text-center py-5">
+    <tr><td colspan="6" class="text-center py-5">
       <div class="spinner-border text-primary-custom"></div>
       <div class="mt-2 text-muted">Đang khởi tạo bài tập...</div>
     </td></tr>`;
@@ -470,7 +330,7 @@ async function startPractice() {
     let filtered = topic ? data.filter(item => item.chuDe === topic) : data;
 
     if (!filtered.length) {
-      tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">Không tìm thấy dữ liệu.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">Không tìm thấy dữ liệu.</td></tr>`;
       practiceWords = [];
       updateScoreboard(0, 0, 0, 0);
       return;
@@ -480,28 +340,36 @@ async function startPractice() {
     renderPracticeTable();
     document.getElementById("btnSubmitPractice").disabled = false;
     updateScoreboard(0, 0, practiceWords.length, 0);
-    showToast(`Đã tạo ${practiceWords.length} từ luyện tập.`, "success");
+    showToast(`Đã tạo ${practiceWords.length} câu bài tập!`, "success");
   } catch (error) {
     console.error(error);
-    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">Lỗi: ${escapeHtml(error.message)}</td></tr>`;
   }
 }
 
+/* RENDER CỘT GHI ÂM VÀ THU ÂM CHUẨN ĐÚNG NÓI */
 function renderPracticeTable() {
   const tbody = document.getElementById("practiceTableBody");
+  if (!tbody) return;
+
   tbody.innerHTML = practiceWords.map((item, index) => `
     <tr id="practiceRow_${index}">
       <td class="text-center fw-bold">${index + 1}</td>
       <td><span class="badge bg-secondary">${escapeHtml(item.chuDe)}</span></td>
       <td class="fw-bold text-primary-custom">
         <div class="d-flex align-items-center justify-content-between gap-1">
-          <span>
-            ${item.maoTu ? `<small class="text-muted fw-normal">(${escapeHtml(item.maoTu)})</small> ` : ""}
-            ${escapeHtml(item.tiengDuc)}
-          </span>
+          <div>
+            <div>
+              ${item.maoTu ? `<small class="text-muted fw-normal">(${escapeHtml(item.maoTu)})</small> ` : ""}
+              ${escapeHtml(item.tiengDuc)}
+            </div>
+            <small class="text-muted fst-italic font-monospace" style="font-size:0.8rem;">
+              ${escapeHtml(item.ipa || "")}
+            </small>
+          </div>
           <button class="btn btn-sm btn-speak p-0 border-0"
                   data-text="${encodeURIComponent(item.tiengDuc || "")}"
-                  onclick="speakGerman(this)" title="Nghe đọc">
+                  onclick="speakGerman(this)" title="Nghe mẫu">
             <i class="fa-solid fa-volume-high"></i>
           </button>
         </div>
@@ -514,12 +382,112 @@ function renderPracticeTable() {
                onkeyup="handlePracticeKeyup(event, ${index})"
                onchange="checkSingleAnswer(${index})">
       </td>
+      <!-- Cột Thu Âm & Chấm Điểm Phát Âm -->
+      <td>
+        <div class="d-flex align-items-center justify-content-center gap-2">
+          <button class="btn btn-sm btn-outline-danger" id="btnRecord_${index}" onclick="toggleRecord(${index})" title="Bấm để phát âm thử">
+            <i class="fa-solid fa-microphone"></i>
+          </button>
+          <div class="text-start flex-grow-1" style="line-height: 1.2;">
+            <div id="speechText_${index}" class="small text-muted fst-italic" style="min-height: 18px;">Chưa ghi âm</div>
+            <div id="speechMatch_${index}"></div>
+          </div>
+        </div>
+      </td>
       <td class="text-center practice-result" id="result_${index}">
         <span class="badge bg-light text-dark border">Chưa làm</span>
       </td>
     </tr>
   `).join("");
 }
+
+/* ---------- Thu Âm và Nhận Dạng Giọng Nói ---------- */
+
+function toggleRecord(index) {
+  if (!recognition) {
+    showToast("Trình duyệt không hỗ trợ Web Speech API. Vui lòng dùng Google Chrome.", "warning");
+    return;
+  }
+
+  const btn = document.getElementById(`btnRecord_${index}`);
+  const statusText = document.getElementById(`speechText_${index}`);
+  const targetWord = practiceWords[index]?.tiengDuc || "";
+
+  btn.className = "btn btn-sm btn-danger";
+  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
+  statusText.textContent = "Đang nghe...";
+
+  recognition.start();
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    statusText.textContent = `"${transcript}"`;
+    verifyPronunciation(index, transcript, targetWord);
+  };
+
+  recognition.onerror = () => {
+    statusText.textContent = "Lỗi nhận diện / Không thấy mic";
+    resetRecordButton(index);
+  };
+
+  recognition.onend = () => {
+    resetRecordButton(index);
+  };
+}
+
+function resetRecordButton(index) {
+  const btn = document.getElementById(`btnRecord_${index}`);
+  if (btn) {
+    btn.className = "btn btn-sm btn-outline-danger";
+    btn.innerHTML = `<i class="fa-solid fa-microphone"></i>`;
+  }
+}
+
+function verifyPronunciation(index, transcript, targetWord) {
+  const matchContainer = document.getElementById(`speechMatch_${index}`);
+  if (!matchContainer) return;
+
+  const cleanTranscript = normalizeGermanText(transcript);
+  const cleanTarget = normalizeGermanText(targetWord);
+
+  const similarity = calculateSimilarity(cleanTranscript, cleanTarget);
+
+  if (similarity >= 0.85 || cleanTranscript === cleanTarget) {
+    matchContainer.innerHTML = `<span class="badge bg-success" style="font-size:0.7rem;"><i class="fa-solid fa-check me-1"></i>Chuẩn (${Math.round(similarity * 100)}%)</span>`;
+  } else if (similarity >= 0.5) {
+    matchContainer.innerHTML = `<span class="badge bg-warning text-dark" style="font-size:0.7rem;"><i class="fa-solid fa-triangle-exclamation me-1"></i>Gần đúng (${Math.round(similarity * 100)}%)</span>`;
+  } else {
+    matchContainer.innerHTML = `<span class="badge bg-danger" style="font-size:0.7rem;"><i class="fa-solid fa-xmark me-1"></i>Sai (${Math.round(similarity * 100)}%)</span>`;
+  }
+}
+
+function normalizeGermanText(text) {
+  return String(text || "").toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
+}
+
+function calculateSimilarity(str1, str2) {
+  if (!str1 || !str2) return 0;
+  const track = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
+
+  for (let i = 0; i <= str1.length; i += 1) track[0][i] = i;
+  for (let j = 0; j <= str2.length; j += 1) track[j][0] = j;
+
+  for (let j = 1; j <= str2.length; j += 1) {
+    for (let i = 1; i <= str1.length; i += 1) {
+      const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
+      track[j][i] = Math.min(
+        track[j][i - 1] + 1,
+        track[j - 1][i] + 1,
+        track[j - 1][i - 1] + indicator,
+      );
+    }
+  }
+
+  const maxLength = Math.max(str1.length, str2.length);
+  return (maxLength - track[str2.length][str1.length]) / maxLength;
+}
+
+/* ---------- Chấm điểm Nghĩa Tiếng Việt ---------- */
 
 function handlePracticeKeyup(event, index) {
   if (event.key === "Enter") {
@@ -533,13 +501,7 @@ function handlePracticeKeyup(event, index) {
 
 function normalizeText(str) {
   if (!str) return "";
-  return String(str)
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .replace(/[\/(),;.\-]/g, " ")
-    .replace(/\s+/g, " ");
+  return String(str).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().replace(/[\/(),;.\-]/g, " ").replace(/\s+/g, " ");
 }
 
 function isAnswerCorrect(userAns, targetAns) {
@@ -550,11 +512,7 @@ function isAnswerCorrect(userAns, targetAns) {
 
   if (user === target) return true;
 
-  const meanings = String(targetAns)
-    .split(/[,;\/\(\)]+/)
-    .map(x => normalizeText(x))
-    .filter(Boolean);
-
+  const meanings = String(targetAns).split(/[,;\/\(\)]+/).map(x => normalizeText(x)).filter(Boolean);
   return meanings.some(m => m === user || (user.length >= 2 && m.includes(user)));
 }
 
@@ -593,15 +551,13 @@ function checkSingleAnswer(index) {
 
 function checkAllAnswers() {
   if (!practiceWords.length) return;
-
   practiceWords.forEach((_, index) => checkSingleAnswer(index));
-
+  
   const correctCount = practiceWords.filter((_, index) =>
     document.getElementById(`input_${index}`)?.classList.contains("is-valid")
   ).length;
 
-  showToast(`Bạn đã trả lời đúng ${correctCount}/${practiceWords.length} câu!`,
-    correctCount === practiceWords.length ? "success" : "primary");
+  showToast(`Bạn trả lời đúng ${correctCount}/${practiceWords.length} câu!`, "primary");
 }
 
 function recalculateScore() {
@@ -631,186 +587,17 @@ function resetPractice() {
   practiceWords.forEach((_, index) => {
     const input = document.getElementById(`input_${index}`);
     const result = document.getElementById(`result_${index}`);
+    const speechText = document.getElementById(`speechText_${index}`);
+    const speechMatch = document.getElementById(`speechMatch_${index}`);
+
     if (input) {
       input.value = "";
       input.classList.remove("is-valid", "is-invalid");
     }
     if (result) result.innerHTML = `<span class="badge bg-light text-dark border">Chưa làm</span>`;
+    if (speechText) speechText.textContent = "Chưa ghi âm";
+    if (speechMatch) speechMatch.innerHTML = "";
   });
   updateScoreboard(0, 0, practiceWords.length, 0);
   document.getElementById("btnSubmitPractice").disabled = practiceWords.length === 0;
-}
-/* =========================================================
-   BỔ SUNG: TÍNH NĂNG GHI ÂM VÀ ĐỐI CHIẾU PHÁT ÂM VỚI IPA
-   ========================================================= */
-
-// Khai báo Web Speech API
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-let recognition = null;
-
-if (SpeechRecognition) {
-  recognition = new SpeechRecognition();
-  recognition.lang = "de-DE"; // Nhận dạng tiếng Đức
-  recognition.continuous = false;
-  recognition.interimResults = false;
-}
-
-// 1. Cập nhật Render Bảng Luyện Tập bao gồm Nút Ghi âm
-function renderPracticeTable() {
-  const tbody = document.getElementById("practiceTableBody");
-  if (!tbody) return;
-
-  tbody.innerHTML = practiceWords.map((item, index) => `
-    <tr id="practiceRow_${index}">
-      <td class="text-center fw-bold">${index + 1}</td>
-      <td><span class="badge bg-secondary">${escapeHtml(item.chuDe)}</span></td>
-      <td class="fw-bold text-primary-custom">
-        <div class="d-flex align-items-center justify-content-between gap-1">
-          <div>
-            <div>
-              ${item.maoTu ? `<small class="text-muted fw-normal">(${escapeHtml(item.maoTu)})</small> ` : ""}
-              ${escapeHtml(item.tiengDuc)}
-            </div>
-            <small class="text-muted fst-italic font-monospace" style="font-size: 0.8rem;">
-              ${escapeHtml(item.ipa || "")}
-            </small>
-          </div>
-          <button class="btn btn-sm btn-speak p-0 border-0"
-                  data-text="${encodeURIComponent(item.tiengDuc || "")}"
-                  onclick="speakGerman(this)" title="Nghe mẫu">
-            <i class="fa-solid fa-volume-high"></i>
-          </button>
-        </div>
-      </td>
-      <td>
-        <input type="text" class="form-control form-control-sm practice-input"
-               id="input_${index}"
-               placeholder="Nhập nghĩa tiếng Việt..."
-               autocomplete="off"
-               onkeyup="handlePracticeKeyup(event, ${index})"
-               onchange="checkSingleAnswer(${index})">
-      </td>
-      <!-- Cột Ghi âm & Khớp phát âm -->
-      <td>
-        <div class="d-flex align-items-center justify-content-center gap-2">
-          <button class="btn btn-sm btn-outline-danger" id="btnRecord_${index}" onclick="toggleRecord(${index})" title="Bấm để nói">
-            <i class="fa-solid fa-microphone"></i>
-          </button>
-          <div class="text-start flex-grow-1" style="line-height: 1.2;">
-            <div id="speechText_${index}" class="small text-muted fst-italic" style="min-height: 18px;">Chưa ghi âm</div>
-            <div id="speechMatch_${index}"></div>
-          </div>
-        </div>
-      </td>
-      <td class="text-center practice-result" id="result_${index}">
-        <span class="badge bg-light text-dark border">Chưa làm</span>
-      </td>
-    </tr>
-  `).join("");
-}
-
-// 2. Xử lý Ghi âm và Nhận diện giọng nói
-function toggleRecord(index) {
-  if (!recognition) {
-    showToast("Trình duyệt của bạn không hỗ trợ Web Speech API (Hãy dùng Chrome/Edge).", "warning");
-    return;
-  }
-
-  const btn = document.getElementById(`btnRecord_${index}`);
-  const statusText = document.getElementById(`speechText_${index}`);
-  const targetWord = practiceWords[index]?.tiengDuc || "";
-
-  // Bắt đầu thu âm
-  btn.classList.replace("btn-outline-danger", "btn-danger");
-  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
-  statusText.textContent = "Đang nghe...";
-
-  recognition.start();
-
-  recognition.onresult = (event) => {
-    const transcript = event.results[0][0].transcript;
-    statusText.textContent = `"${transcript}"`;
-    
-    // Đối chiếu phát âm ghi nhận được với Từ vựng / IPA
-    verifyPronunciation(index, transcript, targetWord);
-  };
-
-  recognition.onerror = (event) => {
-    console.error("Lỗi nhận dạng giọng nói:", event.error);
-    statusText.textContent = "Lỗi nhận dạng!";
-    resetRecordButton(index);
-  };
-
-  recognition.onend = () => {
-    resetRecordButton(index);
-  };
-}
-
-function resetRecordButton(index) {
-  const btn = document.getElementById(`btnRecord_${index}`);
-  if (btn) {
-    btn.classList.replace("btn-danger", "btn-outline-danger");
-    btn.innerHTML = `<i class="fa-solid fa-microphone"></i>`;
-  }
-}
-
-// 3. Hàm Đối chiếu giọng nói nhận diện với Từ/IPA chuẩn
-function verifyPronunciation(index, transcript, targetWord) {
-  const matchContainer = document.getElementById(`speechMatch_${index}`);
-  if (!matchContainer) return;
-
-  const cleanTranscript = normalizeGermanText(transcript);
-  const cleanTarget = normalizeGermanText(targetWord);
-
-  // Tính độ tương đồng giữa từ nói ra và từ mục tiêu
-  const similarity = calculateSimilarity(cleanTranscript, cleanTarget);
-
-  if (similarity >= 0.85 || cleanTranscript === cleanTarget) {
-    matchContainer.innerHTML = `
-      <span class="badge bg-success" style="font-size:0.7rem;">
-        <i class="fa-solid fa-circle-check me-1"></i>Phát âm chuẩn (${Math.round(similarity * 100)}%)
-      </span>`;
-  } else if (similarity >= 0.5) {
-    matchContainer.innerHTML = `
-      <span class="badge bg-warning text-dark" style="font-size:0.7rem;">
-        <i class="fa-solid fa-triangle-exclamation me-1"></i>Gần đúng (${Math.round(similarity * 100)}%)
-      </span>`;
-  } else {
-    matchContainer.innerHTML = `
-      <span class="badge bg-danger" style="font-size:0.7rem;">
-        <i class="fa-solid fa-circle-xmark me-1"></i>Chưa chuẩn (${Math.round(similarity * 100)}%)
-      </span>`;
-  }
-}
-
-// Chuẩn hóa văn bản tiếng Đức
-function normalizeGermanText(text) {
-  return String(text || "")
-    .toLowerCase()
-    .trim()
-    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
-}
-
-// Thuật toán Levenshtein Distance tính độ tương đồng giữa 2 chuỗi
-function calculateSimilarity(str1, str2) {
-  if (!str1 || !str2) return 0;
-  const track = Array(str2.length + 1).fill(null).map(() =>
-    Array(str1.length + 1).fill(null));
-
-  for (let i = 0; i <= str1.length; i += 1) track[0][i] = i;
-  for (let j = 0; j <= str2.length; j += 1) track[j][0] = j;
-
-  for (let j = 1; j <= str2.length; j += 1) {
-    for (let i = 1; i <= str1.length; i += 1) {
-      const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
-      track[j][i] = Math.min(
-        track[j][i - 1] + 1,
-        track[j - 1][i] + 1,
-        track[j - 1][i - 1] + indicator,
-      );
-    }
-  }
-
-  const maxLength = Math.max(str1.length, str2.length);
-  return (maxLength - track[str2.length][str1.length]) / maxLength;
 }
