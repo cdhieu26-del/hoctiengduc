@@ -45,23 +45,19 @@
       
       <!-- Thanh Công Cụ & Bộ Lọc Tra Cứu -->
       <div class="row my-3 align-items-center g-2">
-        <!-- Nút Thêm Mới & Nút Toggle Lọc Trên Mobile -->
         <div class="col-12 col-md-3 d-flex justify-content-between gap-2">
           <button class="btn btn-primary-custom flex-fill" onclick="openModal('add')">
             <i class="fa-solid fa-plus me-1"></i> Thêm mới
           </button>
           
-          <!-- Nút Ẩn/Hiện bộ lọc dành cho Điện thoại -->
-          <button class="btn btn-outline-secondary d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="false">
+          <button class="btn btn-outline-secondary d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#filterSection">
             <i class="fa-solid fa-filter me-1"></i> Lọc
           </button>
         </div>
 
-        <!-- Khung Bộ Lọc Tra Cứu (Thu gọn trên Mobile) -->
         <div class="col-12 col-md-9">
           <div class="collapse d-md-block" id="filterSection">
             <div class="row g-2">
-              <!-- Ô Tìm kiếm từ khóa (Onkeyup) -->
               <div class="col-12 col-md-5">
                 <div class="input-group">
                   <span class="input-group-text bg-white"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
@@ -69,7 +65,6 @@
                 </div>
               </div>
 
-              <!-- Lọc Trình độ (A1 / A2) -->
               <div class="col-6 col-md-3">
                 <select id="filterLevel" class="form-select" onchange="changeLevel(this.value)">
                   <option value="tiengDucA1">Trình độ A1</option>
@@ -77,7 +72,6 @@
                 </select>
               </div>
 
-              <!-- Lọc theo Cột Chủ Đề -->
               <div class="col-6 col-md-4">
                 <select id="filterTopic" class="form-select" onchange="applyFilters()">
                   <option value="">-- Tất cả chủ đề --</option>
@@ -88,9 +82,8 @@
         </div>
       </div>
 
-      <!-- Bảng Dữ Liệu Tra Cứu (Sticky Header & Scroll) -->
+      <!-- Bảng Dữ Liệu Tra Cứu -->
       <div class="table-wrapper flex-grow-1 shadow-sm bg-white rounded">
-        <!-- Loading Spinner -->
         <div id="loading" class="text-center py-5" style="display: none;">
           <div class="spinner-border text-primary-custom" role="status"></div>
           <div class="mt-2 text-muted fw-medium">Đang tải dữ liệu từ Google Sheets...</div>
@@ -111,19 +104,15 @@
               <th>Dịch ví dụ</th>
             </tr>
           </thead>
-          <tbody id="tableBody">
-            <!-- Dữ liệu được render linh hoạt bằng JS -->
-          </tbody>
+          <tbody id="tableBody"></tbody>
         </table>
       </div>
 
-      <!-- Thanh Phân Trang 50 Dòng/Trang -->
+      <!-- Thanh Phân Trang -->
       <div class="pagination-container d-flex flex-column flex-md-row justify-content-between align-items-center mt-3 p-2 bg-white rounded shadow-sm gap-2">
         <div id="pageInfo" class="text-secondary small fw-medium">Hiển thị...</div>
         <nav aria-label="Page navigation">
-          <ul class="pagination pagination-sm mb-0 flex-wrap justify-content-center" id="pagination">
-            <!-- Các nút bấm trang render bằng JS -->
-          </ul>
+          <ul class="pagination pagination-sm mb-0 flex-wrap justify-content-center" id="pagination"></ul>
         </nav>
       </div>
 
@@ -137,7 +126,6 @@
         <div class="card shadow-sm mb-3">
           <div class="card-body p-3">
             <div class="row g-2 align-items-center">
-              <!-- Bộ lọc Trình độ -->
               <div class="col-6 col-md-2">
                 <label class="form-label small fw-bold mb-1">Trình độ</label>
                 <select id="practiceLevel" class="form-select form-select-sm" onchange="loadPracticeTopics()">
@@ -146,7 +134,6 @@
                 </select>
               </div>
 
-              <!-- Bộ lọc Chủ đề -->
               <div class="col-6 col-md-3">
                 <label class="form-label small fw-bold mb-1">Chủ đề</label>
                 <select id="practiceTopic" class="form-select form-select-sm">
@@ -154,7 +141,6 @@
                 </select>
               </div>
 
-              <!-- Các Nút Thao tác -->
               <div class="col-12 col-md-4 d-flex gap-2 align-items-end">
                 <button class="btn btn-primary-custom btn-sm flex-fill" onclick="startPractice()">
                   <i class="fa-solid fa-shuffle me-1"></i> Bắt đầu (50 từ)
@@ -167,7 +153,6 @@
                 </button>
               </div>
 
-              <!-- Bảng Điểm / Thống Kê -->
               <div class="col-12 col-md-3">
                 <div class="d-flex justify-content-around text-center p-2 bg-light rounded border">
                   <div>
@@ -192,24 +177,24 @@
           </div>
         </div>
 
-        <!-- Bảng Dữ Liệu Bài Tập -->
+        <!-- Bảng Dữ Liệu Bài Tập (Cấu trúc chuẩn 6 cột có Thu âm) -->
         <div class="table-wrapper flex-grow-1 shadow-sm bg-white rounded">
           <table class="table table-hover table-bordered mb-0 align-middle" id="practiceTable">
             <thead>
               <tr>
-                <th width="40" class="text-center">STTaaaa</th>
+                <th width="40" class="text-center">STT</th>
                 <th width="120">Chủ đề</th>
-                <th width="200">Tiếng Đức & IPA</th>
+                <th width="220">Tiếng Đức & IPA</th>
                 <th>Nhập nghĩa Tiếng Việt</th>
-                <th width="260" class="text-center">Luyện phát âm (Ghi âm)</th>
-                <th width="160" class="text-center">Kết quả Nghĩa</th>
+                <th width="260" class="text-center"><i class="fa-solid fa-microphone text-danger me-1"></i>Luyện phát âm</th>
+                <th width="140" class="text-center">Kết quả</th>
               </tr>
             </thead>
             <tbody id="practiceTableBody">
               <tr>
                 <td colspan="6" class="text-center text-muted py-5">
                   <i class="fa-solid fa-graduation-cap fa-3x mb-3 text-secondary"></i>
-                  <div>Vui lòng chọn <strong>Trình độ</strong>, <strong>Chủ đề</strong> và bấm <strong>"Bắt đầu (50 từ)"</strong> để chọn ngẫu nhiên bài tập.</div>
+                  <div>Vui lòng chọn <strong>Trình độ</strong>, <strong>Chủ đề</strong> và bấm <strong>"Bắt đầu (50 từ)"</strong> để tải bài tập.</div>
                 </td>
               </tr>
             </tbody>
@@ -226,7 +211,7 @@
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title" id="modalTitle">Thêm Từ Mới</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
           <form id="dataForm">
@@ -234,7 +219,7 @@
             <div class="row g-3">
               <div class="col-md-6">
                 <label class="form-label fw-medium">Chủ đề <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" id="chuDe" required placeholder="Gia đình, Thời tiết, Giao thông...">
+                <input type="text" class="form-control" id="chuDe" required placeholder="Gia đình, Thời tiết...">
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-medium">Tiếng Đức <span class="text-danger">*</span></label>
@@ -288,7 +273,7 @@
         <div class="modal-body text-center py-4">
           <i class="fa-solid fa-triangle-exclamation text-danger fa-3x mb-3"></i>
           <h5 class="fw-bold">Xác nhận xóa</h5>
-          <p class="text-muted small mb-0">Bạn có chắc chắn muốn xóa dòng này không? Dữ liệu trên Google Sheet sẽ bị xóa vĩnh viễn.</p>
+          <p class="text-muted small mb-0">Bạn có chắc muốn xóa vĩnh viễn dòng này?</p>
           <input type="hidden" id="deleteRowIndex">
         </div>
         <div class="modal-footer justify-content-center border-0 pt-0">
@@ -301,17 +286,16 @@
     </div>
   </div>
 
-  <!-- ================= TOAST NOTIFICATION ================= -->
+  <!-- TOAST NOTIFICATION -->
   <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
     <div id="liveToast" class="toast align-items-center text-white border-0 shadow" role="alert" aria-live="assertive" aria-atomic="true">
       <div class="d-flex">
         <div class="toast-body" id="toastMessage">Thông báo...</div>
-        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="modal"></button>
       </div>
     </div>
   </div>
 
-  <!-- Bootstrap 5 JS Bundle -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="app.js"></script>
 </body>
